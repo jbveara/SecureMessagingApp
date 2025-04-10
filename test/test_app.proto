@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+// Note that currently, we are only using the User message
+//  and only name field  protoc --python_out=. test_app.proto
+
+message Ping {
+    string msg = 1; 
+    string ip_address = 2;
+    int32    port = 3;
+}
+
+message Pong {
+    string msg = 1;
+    string ip_address = 2;
+    int32 port = 3;
+}

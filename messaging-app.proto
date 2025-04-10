@@ -1,36 +1,62 @@
 syntax = "proto3";
 
 // Note that currently, we are only using the User message
-//  and only name field
+//  and only name field  
+// To compile
+//protoc --python_out=. messaging-app.proto
 
-message User {
-    string name = 1; 
-    string ip_address = 2;
-    int32    port = 3;
+message LoginRequest {
+    string username =1;
+    bytes A = 2;
 }
 
-// but we one could add a variety of other messages -- note that some of them won't make 
-//  sense in the context of your project and are only put for illustration purpose.
+message LoginReply {
+    bytes s = 1;
+    bytes u = 2;
+    bytes B = 3;
+    bytes c1 = 4;
+}
+
+message KeyConfirm {
+    bytes c1_encrypted = 1;
+    bytes c2 = 2;
+    bytes iv =3;
+}
+
+message KeyReply {
+    bytes c2_encrypted = 1;
+    bytes iv =2;
+}
+
+message RegisterUser {
+    string username = 1;
+    string IP_Address = 2;
+    int32 port = 3;
+    bytes PublicKey = 4;
+}
 
 message ListRequest {
-    bool detailed = 1;
+    string username = 1;
 }
 
-message ListResponse {
-    repeated User user = 1;
-    bool detailed = 2;
+message ListReply{
+    bytes Users = 1;
 }
 
-message UserInfoRequest {
-    int32 request_id = 1;
-    User user = 2;
+message EstablishKeyRequest{
+    bytes contrib_a = 1;
+    string username = 2;
+    bytes signature = 3;
 }
 
-message UserInfoResponse {
-    int32 request_id = 1;
-    User user = 2;
+message EstablishKeyReply{
+    bytes contrib_b = 1;
+    string username = 2;
+    bytes signature = 3;
+    bytes c1 = 4;
 }
 
-message BasicMsg {
-    string msg = 1;
+message Message{
+    bytes encrypted_message = 1;
+    bytes iv = 2;
 }
