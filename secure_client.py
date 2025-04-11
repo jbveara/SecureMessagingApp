@@ -51,7 +51,7 @@ parser.add_argument("-p", "--server-port", type=int,
                     default=5569,
                     help="port number of server to connect to")
 
-parser.add_argument("-u", "--user",
+parser.add_argument("-u", "--user", required=True,
                     help="name of user")
 
 parser.add_argument("-up", "--user-port", type = int,
@@ -62,7 +62,7 @@ args = parser.parse_args()
 username = args.user
 serverIP = args.server
 serverPORT = args.server_port
-HOST_PORT = args.user_port
+userPORT = args.user_port
 
 # Initialize state of client
 status = NOT_REGISTERED
@@ -72,7 +72,10 @@ context = zmq.Context()
 
 # Bind receiving socket to receive any messages sent to us by other clients
 receive = context.socket(zmq.REP)
-receive.bind("tcp://%s:%s" %(HOST_IP, HOST_PORT))
+receive.bind("tcp://%s:%s" %(HOST_IP, userPORT))
+
+# Initialize dictionary to store session keys with other clients
+active_sessions = dict()
 
 # Function to print a prompt character
 def print_prompt(c):
@@ -88,14 +91,14 @@ def H(*args) -> int:
     return int(hashlib.sha256(a.encode("utf-8")).hexdigest(), 16)
 
 def encrypt(payload, key):
-    iv = os.urandom(16)
-    cipher = Cipher(algorithms.AES256(key), modes.CTR(iv), backend=default_backend())
+    nonce = os.urandom(16)
+    cipher = Cipher(algorithms.AES256(key), modes.CTR(nonce), backend=default_backend())
     encryptor = cipher.encryptor()
     encrypted_payload = encryptor.update(payload)
-    return encrypted_payload, iv
+    return encrypted_payload, nonce
 
-def decrypt(encrypted_payload, key, iv):
-    cipher = Cipher(algorithms.AES256(key), modes.CTR(iv), backend=default_backend())
+def decrypt(encrypted_payload, key, nonce):
+    cipher = Cipher(algorithms.AES256(key), modes.CTR(nonce), backend=default_backend())
     decryptor = cipher.decryptor()
     payload = decryptor.update(encrypted_payload)
     return payload
@@ -143,13 +146,13 @@ def client_login():
     SessionKey = pow(big_b-pow(g,x,N),a+u*x,N)
     SessionKey = H(SessionKey)
 
-    #Client sends proof of seesion key to server (encrypted_c1) with value c2, and iv used for AES CTR mode
+    #Client sends proof of seesion key to server (encrypted_c1) with value c2, and nonce used for AES CBC mode
     c2 = cryptrand()
-    c1_encrypted,iv = encrypt(c1.to_bytes(64),SessionKey.to_bytes(32))
+    c1_encrypted,nonce = encrypt(c1.to_bytes(64),SessionKey.to_bytes(32))
     key_confirm = messaging_app_pb2.KeyConfirm()
     key_confirm.c1_encrypted = c1_encrypted
     key_confirm.c2 = c2.to_bytes(64)
-    key_confirm.iv = iv
+    key_confirm.nonce = nonce
     client.send(b'KEY_CONFIRM',flags=zmq.SNDMORE)
     client.send(key_confirm.SerializeToString())
     
@@ -158,10 +161,10 @@ def client_login():
     key_reply = messaging_app_pb2.KeyReply()
     key_reply.ParseFromString(message[1])
     c2_encrypted = key_reply.c2_encrypted
-    iv = key_reply.iv
+    nonce = key_reply.nonce
 
     #Client validates session key, check D{c2_encrypted} == c2
-    c2_received = decrypt(c2_encrypted,SessionKey.to_bytes(32),iv)
+    c2_received = decrypt(c2_encrypted,SessionKey.to_bytes(32),nonce)
 
     if c2_received.hex() == c2.to_bytes(64).hex():
         print('Keys valid')
@@ -173,13 +176,13 @@ def client_login():
         register_user = messaging_app_pb2.RegisterUser()
         register_user.username = username
         register_user.IP_Address = HOST_IP
-        register_user.port = HOST_PORT
+        register_user.port = userPORT
         register_user.PublicKey = K_pub
 
-        payload , iv = encrypt(register_user.SerializeToString(),SessionKey.to_bytes(32))
+        payload , nonce = encrypt(register_user.SerializeToString(),SessionKey.to_bytes(32))
 
         client.send(b'REGISTER_USER',flags=zmq.SNDMORE)
-        client.send(iv,flags=zmq.SNDMORE)
+        client.send(nonce,flags=zmq.SNDMORE)
         client.send(payload)
         
         #Receive Registration ack
@@ -218,17 +221,16 @@ def send_list(SessionKey):
 
     return logged_users
 
-def send_message(user_message, user_info, K_priv):
+def send_message(user_message, user_info, Key):
     '''Function to send a message to another user'''
     print('Sending message...')
     
-    Key = establish_key(user_info, K_priv)
-
-    encrypted_message, iv = encrypt(user_message.encode('utf-8'), Key.to_bytes(32))
+    encrypted_message, nonce = encrypt(user_message.encode('utf-8'), Key.to_bytes(32))
 
     message = messaging_app_pb2.Message()
+    message.username = username
     message.encrypted_message = encrypted_message
-    message.iv = iv
+    message.nonce = nonce
 
     destinationIP  = user_info[0]
     destinationPort = user_info[1]
@@ -237,16 +239,26 @@ def send_message(user_message, user_info, K_priv):
     client.connect("tcp://%s:%s" %(destinationIP, destinationPort))
 
     client.send(b'MESSAGE',flags=zmq.SNDMORE)
+    client.send(bytes(username, 'utf-8'),flags=zmq.SNDMORE)
     client.send(message.SerializeToString())
 
 
-def receive_message(message, Key):
+def receive_message(message):
     received_message = messaging_app_pb2.Message()
-    received_message.ParseFromString(message[1])
 
-    decrypted_message = decrypt(received_message.encrypted_message,Key.to_bytes(32), received_message.iv)
+    user = message[1]
 
-    return decrypted_message
+    Key = active_sessions[user.decode('utf-8')]
+
+    received_message.ParseFromString(message[2])
+
+    print(received_message.nonce.hex())
+
+    decrypted_message = decrypt(received_message.encrypted_message,Key.to_bytes(32), received_message.nonce)
+
+    receive.send(message[2])
+
+    return decrypted_message, user
 
 def establish_key(user_info, K_priv):
     '''D-H key exchange to establisth a symmetric key with another user '''
@@ -309,10 +321,10 @@ def establish_key(user_info, K_priv):
     Message_SessionKey = H(Message_SessionKey)
 
     #Send Session Key confirmation
-    c1_encrypted, iv = encrypt(establish_key_reply.c1,Message_SessionKey.to_bytes(32))
+    c1_encrypted, nonce = encrypt(establish_key_reply.c1,Message_SessionKey.to_bytes(32))
     key_confirm = messaging_app_pb2.KeyConfirm()
     key_confirm.c1_encrypted = c1_encrypted
-    key_confirm.iv = iv
+    key_confirm.nonce = nonce
     c2 = cryptrand()
     key_confirm.c2 = c2.to_bytes(64)
 
@@ -324,10 +336,10 @@ def establish_key(user_info, K_priv):
     key_reply = messaging_app_pb2.KeyReply()
     key_reply.ParseFromString(message[1])
     c2_encrypted = key_reply.c2_encrypted
-    iv = key_reply.iv
+    nonce = key_reply.nonce
 
     #Client validates session key, check D{c2_encrypted} == c2
-    c2_received = decrypt(c2_encrypted,Message_SessionKey.to_bytes(32),iv)
+    c2_received = decrypt(c2_encrypted,Message_SessionKey.to_bytes(32),nonce)
 
     if c2_received.hex() == c2.to_bytes(64).hex():
         print('Keys valid')
@@ -405,20 +417,20 @@ def process_key_est_req(message,users,K_priv):
         key_confirm.ParseFromString(message[1])
 
         c1_encrypted = key_confirm.c1_encrypted
-        iv = key_confirm.iv
+        nonce = key_confirm.nonce
         c2 = int(key_confirm.c2.hex(),16)
 
-        c1_received = decrypt(c1_encrypted,Message_SessionKey.to_bytes(32),iv)
+        c1_received = decrypt(c1_encrypted,Message_SessionKey.to_bytes(32),nonce)
 
         if c1_received.hex() == c1.to_bytes(64).hex():
             print('Keys valid')
             
-            #Server sends proof of session key to client E{c2} and iv used for AES CTR mode
-            c2_encrypted,iv = encrypt(c2.to_bytes(64),Message_SessionKey.to_bytes(32))
+            #Server sends proof of session key to client E{c2} and nonce used for AES CBC mode
+            c2_encrypted,nonce = encrypt(c2.to_bytes(64),Message_SessionKey.to_bytes(32))
 
             key_reply = messaging_app_pb2.KeyReply()
             key_reply.c2_encrypted = c2_encrypted
-            key_reply.iv = iv
+            key_reply.nonce = nonce
 
             receive.send(b'KEY_REPLY',flags=zmq.SNDMORE)
             receive.send(key_reply.SerializeToString())
@@ -428,7 +440,7 @@ def process_key_est_req(message,users,K_priv):
         else:
             key_reply = messaging_app_pb2.KeyReply()
             key_reply.c2_encrypted = bytes(64)
-            key_reply.iv = bytes(16)
+            key_reply.nonce = bytes(16)
             receive.send(b'ABORT',flags=zmq.SNDMORE)
             receive.send(key_reply.SerializeToString())
             raise Exception("Invalid key")
@@ -459,9 +471,13 @@ def main():
             if message[0] == b'ESTABLISH_KEY_REQUEST' and len(message) > 1:
                 users = send_list(SessionKey)
                 Key, user = process_key_est_req(message,users,K_priv)
+                active_sessions[user] = Key
+                print(active_sessions)
                 print_prompt(' <- ')
-                message = receive.recv_multipart()
-                decrypted_message = receive_message(message,Key)
+
+            if message[0] == b'MESSAGE' and len(message) >1:
+                print('Received message, attempting to decrypt')
+                decrypted_message, user = receive_message(message)
                 print('Message received from %s' % user)
                 print(decrypted_message.decode('utf-8'))           
 
@@ -494,8 +510,15 @@ def main():
 
                 if destination in users:    
                     user_info = users[destination]
-                    send_message(msg, user_info, K_priv)
 
+                    if destination not in active_sessions:
+                        Key = establish_key(user_info, K_priv)
+                        active_sessions[destination] = Key
+                        send_message(msg, user_info, Key)
+
+                    else:   
+                        Key = active_sessions[destination]
+                        send_message(msg, user_info, Key)
                 else:
                     print("%s is not online" % destination)
 

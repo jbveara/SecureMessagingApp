@@ -20,12 +20,12 @@ message LoginReply {
 message KeyConfirm {
     bytes c1_encrypted = 1;
     bytes c2 = 2;
-    bytes iv =3;
+    bytes nonce =3;
 }
 
 message KeyReply {
     bytes c2_encrypted = 1;
-    bytes iv =2;
+    bytes nonce =2;
 }
 
 message RegisterUser {
@@ -57,6 +57,7 @@ message EstablishKeyReply{
 }
 
 message Message{
-    bytes encrypted_message = 1;
-    bytes iv = 2;
+    string username = 1;
+    bytes encrypted_message = 2;
+    bytes nonce = 3;
 }

@@ -70,14 +70,14 @@ def H(*args) -> int:
     return int(hashlib.sha256(a.encode("utf-8")).hexdigest(), 16)
 
 def encrypt(payload, key):
-    iv = os.urandom(16)
-    cipher = Cipher(algorithms.AES256(key), modes.CTR(iv), backend=default_backend())
+    nonce = os.urandom(16)
+    cipher = Cipher(algorithms.AES256(key), modes.CTR(nonce), backend=default_backend())
     encryptor = cipher.encryptor()
     encrypted_payload = encryptor.update(payload)
-    return encrypted_payload, iv
+    return encrypted_payload, nonce
 
-def decrypt(encrypted_payload, key, iv):
-    cipher = Cipher(algorithms.AES256(key), modes.CTR(iv), backend=default_backend())
+def decrypt(encrypted_payload, key, nonce):
+    cipher = Cipher(algorithms.AES256(key), modes.CTR(nonce), backend=default_backend())
     decryptor = cipher.decryptor()
     payload = decryptor.update(encrypted_payload)
     return payload
@@ -120,21 +120,21 @@ def client_login(message):
     key_confirm.ParseFromString(message[1])
 
     c1_encrypted = key_confirm.c1_encrypted
-    iv = key_confirm.iv
+    nonce = key_confirm.nonce
     c2 = int(key_confirm.c2.hex(),16)
 
     #Server validates session key, check D{c1_encrypted} == c1
-    c1_received = decrypt(c1_encrypted,SessionKey.to_bytes(32),iv)
+    c1_received = decrypt(c1_encrypted,SessionKey.to_bytes(32),nonce)
 
     if c1_received.hex() == c1.to_bytes(64).hex():
         print('Keys valid')
         
-        #Server sends proof of session key to client E{c2} and iv used for AES CTR mode
-        c2_encrypted,iv = encrypt(c2.to_bytes(64),SessionKey.to_bytes(32))
+        #Server sends proof of session key to client E{c2} and nonce used for AES CBC mode
+        c2_encrypted,nonce = encrypt(c2.to_bytes(64),SessionKey.to_bytes(32))
 
         key_reply = messaging_app_pb2.KeyReply()
         key_reply.c2_encrypted = c2_encrypted
-        key_reply.iv = iv
+        key_reply.nonce = nonce
 
         server.send(b'KEY_REPLY',flags=zmq.SNDMORE)
         server.send(key_reply.SerializeToString())
@@ -154,15 +154,15 @@ def client_login(message):
 
         #Send Ack
         payload = b'Welcome %s!' % bytes(register_user.username, 'utf-8')
-        encrypted_payload, iv = encrypt(payload,SessionKey.to_bytes(32))
-        server.send(iv,flags=zmq.SNDMORE)
+        encrypted_payload, nonce = encrypt(payload,SessionKey.to_bytes(32))
+        server.send(nonce,flags=zmq.SNDMORE)
         server.send(encrypted_payload)
         
     else:
         print('Keys invalid')
         key_reply = messaging_app_pb2.KeyReply()
         key_reply.c2_encrypted = bytes(64)
-        key_reply.iv = bytes(16)
+        key_reply.nonce = bytes(16)
         server.send(b'ABORT',flags=zmq.SNDMORE)
         server.send(key_reply.SerializeToString())
 
@@ -180,9 +180,9 @@ def list_request(message):
 
         SessionKey = logged_ident[list_request.username]
 
-        encrypted_payload, iv = encrypt(list_reply.SerializeToString(),SessionKey.to_bytes(32))
+        encrypted_payload, nonce = encrypt(list_reply.SerializeToString(),SessionKey.to_bytes(32))
 
-        server.send(iv,flags=zmq.SNDMORE)
+        server.send(nonce,flags=zmq.SNDMORE)
         server.send(encrypted_payload)
 
 

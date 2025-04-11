@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x13messaging-app.proto\"+\n\x0cLoginRequest\x12\x10\n\x08username\x18\x01 \x01(\t\x12\t\n\x01\x41\x18\x02 \x01(\x0c\"9\n\nLoginReply\x12\t\n\x01s\x18\x01 \x01(\x0c\x12\t\n\x01u\x18\x02 \x01(\x0c\x12\t\n\x01\x42\x18\x03 \x01(\x0c\x12\n\n\x02\x63\x31\x18\x04 \x01(\x0c\":\n\nKeyConfirm\x12\x14\n\x0c\x63\x31_encrypted\x18\x01 \x01(\x0c\x12\n\n\x02\x63\x32\x18\x02 \x01(\x0c\x12\n\n\x02iv\x18\x03 \x01(\x0c\",\n\x08KeyReply\x12\x14\n\x0c\x63\x32_encrypted\x18\x01 \x01(\x0c\x12\n\n\x02iv\x18\x02 \x01(\x0c\"U\n\x0cRegisterUser\x12\x10\n\x08username\x18\x01 \x01(\t\x12\x12\n\nIP_Address\x18\x02 \x01(\t\x12\x0c\n\x04port\x18\x03 \x01(\x05\x12\x11\n\tPublicKey\x18\x04 \x01(\x0c\"\x1f\n\x0bListRequest\x12\x10\n\x08username\x18\x01 \x01(\t\"\x1a\n\tListReply\x12\r\n\x05Users\x18\x01 \x01(\x0c\"M\n\x13\x45stablishKeyRequest\x12\x11\n\tcontrib_a\x18\x01 \x01(\x0c\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x11\n\tsignature\x18\x03 \x01(\x0c\"W\n\x11\x45stablishKeyReply\x12\x11\n\tcontrib_b\x18\x01 \x01(\x0c\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x11\n\tsignature\x18\x03 \x01(\x0c\x12\n\n\x02\x63\x31\x18\x04 \x01(\x0c\"0\n\x07Message\x12\x19\n\x11\x65ncrypted_message\x18\x01 \x01(\x0c\x12\n\n\x02iv\x18\x02 \x01(\x0c\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x13messaging-app.proto\"+\n\x0cLoginRequest\x12\x10\n\x08username\x18\x01 \x01(\t\x12\t\n\x01\x41\x18\x02 \x01(\x0c\"9\n\nLoginReply\x12\t\n\x01s\x18\x01 \x01(\x0c\x12\t\n\x01u\x18\x02 \x01(\x0c\x12\t\n\x01\x42\x18\x03 \x01(\x0c\x12\n\n\x02\x63\x31\x18\x04 \x01(\x0c\"=\n\nKeyConfirm\x12\x14\n\x0c\x63\x31_encrypted\x18\x01 \x01(\x0c\x12\n\n\x02\x63\x32\x18\x02 \x01(\x0c\x12\r\n\x05nonce\x18\x03 \x01(\x0c\"/\n\x08KeyReply\x12\x14\n\x0c\x63\x32_encrypted\x18\x01 \x01(\x0c\x12\r\n\x05nonce\x18\x02 \x01(\x0c\"U\n\x0cRegisterUser\x12\x10\n\x08username\x18\x01 \x01(\t\x12\x12\n\nIP_Address\x18\x02 \x01(\t\x12\x0c\n\x04port\x18\x03 \x01(\x05\x12\x11\n\tPublicKey\x18\x04 \x01(\x0c\"\x1f\n\x0bListRequest\x12\x10\n\x08username\x18\x01 \x01(\t\"\x1a\n\tListReply\x12\r\n\x05Users\x18\x01 \x01(\x0c\"M\n\x13\x45stablishKeyRequest\x12\x11\n\tcontrib_a\x18\x01 \x01(\x0c\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x11\n\tsignature\x18\x03 \x01(\x0c\"W\n\x11\x45stablishKeyReply\x12\x11\n\tcontrib_b\x18\x01 \x01(\x0c\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x11\n\tsignature\x18\x03 \x01(\x0c\x12\n\n\x02\x63\x31\x18\x04 \x01(\x0c\"E\n\x07Message\x12\x10\n\x08username\x18\x01 \x01(\t\x12\x19\n\x11\x65ncrypted_message\x18\x02 \x01(\x0c\x12\r\n\x05nonce\x18\x03 \x01(\x0c\x62\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'messaging_app_pb2', globals())
@@ -25,19 +25,19 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _LOGINREPLY._serialized_start=68
   _LOGINREPLY._serialized_end=125
   _KEYCONFIRM._serialized_start=127
-  _KEYCONFIRM._serialized_end=185
-  _KEYREPLY._serialized_start=187
-  _KEYREPLY._serialized_end=231
-  _REGISTERUSER._serialized_start=233
-  _REGISTERUSER._serialized_end=318
-  _LISTREQUEST._serialized_start=320
-  _LISTREQUEST._serialized_end=351
-  _LISTREPLY._serialized_start=353
-  _LISTREPLY._serialized_end=379
-  _ESTABLISHKEYREQUEST._serialized_start=381
-  _ESTABLISHKEYREQUEST._serialized_end=458
-  _ESTABLISHKEYREPLY._serialized_start=460
-  _ESTABLISHKEYREPLY._serialized_end=547
-  _MESSAGE._serialized_start=549
-  _MESSAGE._serialized_end=597
+  _KEYCONFIRM._serialized_end=188
+  _KEYREPLY._serialized_start=190
+  _KEYREPLY._serialized_end=237
+  _REGISTERUSER._serialized_start=239
+  _REGISTERUSER._serialized_end=324
+  _LISTREQUEST._serialized_start=326
+  _LISTREQUEST._serialized_end=357
+  _LISTREPLY._serialized_start=359
+  _LISTREPLY._serialized_end=385
+  _ESTABLISHKEYREQUEST._serialized_start=387
+  _ESTABLISHKEYREQUEST._serialized_end=464
+  _ESTABLISHKEYREPLY._serialized_start=466
+  _ESTABLISHKEYREPLY._serialized_end=553
+  _MESSAGE._serialized_start=555
+  _MESSAGE._serialized_end=624
 # @@protoc_insertion_point(module_scope)
