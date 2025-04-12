@@ -24,4 +24,4 @@ protobuf
 4. Once you have logged in you will see the welcome message from the server.
 5. The client can type the `LIST` command to get a list of active users.
 6. The client can type the `SEND $USER $message` command.  Replace `$USER` with the username you wish to send a message to, and `$message` with the message you wish to send.
-7. Once complete, the client can log out using the `LOGOUT` command.
+7. Once complete, the client can log out using the `LOGOUT` command to logout of the system and close the application

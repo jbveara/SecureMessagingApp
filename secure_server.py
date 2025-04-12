@@ -94,6 +94,15 @@ def client_login(message):
     new_user = login_request.username
     big_a = int(login_request.A.hex(),16)
 
+    #Abort if A received is 0 mod N
+    if big_a % N == 0:
+        print ('Invalid A received during SRP key exchange')
+        key_reply = messaging_app_pb2.KeyReply()
+        key_reply.c2_encrypted = bytes(64)
+        key_reply.nonce = bytes(16)
+        server.send(b'ABORT',flags=zmq.SNDMORE)
+        server.send(key_reply.SerializeToString())
+
     #Server chooses b, c1, and 32-bit u value. Sends B = g^b+g^Wmodp, u, s, and c1 B to client
     b = cryptrand()
     c1 = cryptrand()
@@ -185,6 +194,29 @@ def list_request(message):
         server.send(nonce,flags=zmq.SNDMORE)
         server.send(encrypted_payload)
 
+def process_logout(message):
+    '''Function to process a logout message from a user'''
+    user = message[1].decode('utf-8')
+    nonce = message[2]
+
+    logout_message = messaging_app_pb2.Logout()
+    
+    key = logged_ident[user]
+
+    try:
+        decrypted_message = decrypt(message[3],key.to_bytes(32),nonce)
+        logout_message.ParseFromString(decrypted_message)
+        print('Logging out user %s' % logout_message.username)
+        if logout_message.username in logged_users:
+            del logged_users[logout_message.username]
+            del logged_ident[logout_message.username]
+        else:
+            print('Logout Error, user does not exist')
+        
+        server.send(b'OK')
+    except:
+        print('Can not process logout request')
+        server.send(b'FAIL') 
 
 def main():
     # main loop waiting for users messages
@@ -203,6 +235,9 @@ def main():
             elif message[0] == b'LOGIN_REQUEST':
                 print("Received [%s] message" % message[0])
                 client_login(message)
+            elif message[0] == b'LOGOUT':
+                print("Received [%s] message" % message[0])
+                process_logout(message)
             else:
                 print("Received [%s] message" % message[0])
                 print('Dropping unknown message')

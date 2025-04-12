@@ -61,3 +61,7 @@ message Message{
     bytes encrypted_message = 2;
     bytes nonce = 3;
 }
+
+message Logout{
+    string username = 1;
+}

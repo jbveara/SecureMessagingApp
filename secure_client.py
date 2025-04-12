@@ -138,6 +138,15 @@ def client_login():
     s = int(login_reply.s.hex(),16)
     c1 = int(login_reply.c1.hex(),16)
 
+    #Abort if B received is 0 mod N
+    if big_b % N == 0 :
+        print('Invalid B received during SRP key exchange')
+        status = NOT_REGISTERED
+        SessionKey = 0
+        K_priv = 0
+        return SessionKey, K_priv, status
+
+
     #Client asks user for password
     password = input("Please enter your password:\n")
     x = H(s,password)
@@ -321,7 +330,7 @@ def establish_key(user_info, K_priv):
     Message_SessionKey = H(Message_SessionKey)
 
     #Send Session Key confirmation
-    c1_encrypted, nonce = encrypt(establish_key_reply.c1,Message_SessionKey.to_bytes(32))
+    c1_encrypted, nonce = encrypimplementingt(establish_key_reply.c1,Message_SessionKey.to_bytes(32))
     key_confirm = messaging_app_pb2.KeyConfirm()
     key_confirm.c1_encrypted = c1_encrypted
     key_confirm.nonce = nonce
@@ -447,6 +456,23 @@ def process_key_est_req(message,users,K_priv):
 
     else:
         raise Exception("received key establishment request from inactive user")
+    
+def logout(SessionKey):
+    '''Function to send log out message and shut down program'''
+
+    client = context.socket(zmq.REQ)
+    client.connect("tcp://%s:%s" %(serverIP, serverPORT))
+
+    logout_message = messaging_app_pb2.Logout()
+    logout_message.username = username
+
+    encrypted_message, nonce = encrypt(logout_message.SerializeToString(),SessionKey.to_bytes(32))
+
+    client.send(b"LOGOUT",flags=zmq.SNDMORE)
+    client.send(bytes(username,'utf-8'),flags=zmq.SNDMORE)
+    client.send(nonce,flags=zmq.SNDMORE)
+    client.send(encrypted_message)
+
 
 
 def main():
@@ -500,8 +526,12 @@ def main():
                 users = send_list(SessionKey)
                 print(users)
 
+            if cmd[0] =='LOGOUT':  
+                logout(SessionKey)
+                sys.exit()
+
             # SEND command is sent as a three parts ZMQ message, as "SEND destination message"
-            elif cmd[0] == 'SEND' and len(cmd) > 2:
+            if cmd[0] == 'SEND' and len(cmd) > 2:
                 destination = cmd[1]
                 msg = cmd[2]
                 
