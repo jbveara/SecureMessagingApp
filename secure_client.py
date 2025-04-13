@@ -330,7 +330,7 @@ def establish_key(user_info, K_priv):
     Message_SessionKey = H(Message_SessionKey)
 
     #Send Session Key confirmation
-    c1_encrypted, nonce = encrypimplementingt(establish_key_reply.c1,Message_SessionKey.to_bytes(32))
+    c1_encrypted, nonce = encrypt(establish_key_reply.c1,Message_SessionKey.to_bytes(32))
     key_confirm = messaging_app_pb2.KeyConfirm()
     key_confirm.c1_encrypted = c1_encrypted
     key_confirm.nonce = nonce
